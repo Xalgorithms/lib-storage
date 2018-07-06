@@ -83,7 +83,12 @@ class FindSpec extends FlatSpec with Matchers with MockFactory {
 
   it should "find arrays" in {
     Find.maybe_find_array(doc, "a") shouldEqual(None)
-    Find.maybe_find_array(doc, "f") shouldEqual(Some(doc.getArray("f").getValues().asScala))
+    Find.maybe_find_array(doc, "f") shouldEqual(Some(doc.getArray("f")))
+  }
+
+  it should "find arrays as sequences" in {
+    Find.maybe_find_array_as_seq(doc, "a") shouldEqual(None)
+    Find.maybe_find_array_as_seq(doc, "f") shouldEqual(Some(doc.getArray("f").getValues().asScala))
   }
 
   it should "find datetimes" in {

@@ -76,7 +76,17 @@ object Find {
     }
   }
 
-  def maybe_find_array(doc: BsonDocument, k: String): Option[Seq[BsonValue]] = {
+  def maybe_find_array(doc: BsonDocument, k: String): Option[BsonArray] = {
+    maybe_find_value(doc, k) match {
+      case Some(v) => v match {
+        case (a: BsonArray) => Some(a)
+        case _ => None
+      }
+      case _ => None
+    }
+  }
+
+  def maybe_find_array_as_seq(doc: BsonDocument, k: String): Option[Seq[BsonValue]] = {
     maybe_find_value(doc, k) match {
       case Some(v) => Option(convert_to_seq(v))
       case _ => None
