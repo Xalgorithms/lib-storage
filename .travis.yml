@@ -1,0 +1,17 @@
+language: scala
+scala:
+- 2.11.11
+script:
+- sbt test package
+notifications:
+  slack:
+    rooms:
+      secure: jY/tykY7OiewrNd+q690RdtK1QCU4Kb/S/PQWB2pw5fbkBImRNO2R3pyfpnEjAyQy2B0i6xerNwHGXDJtr+sHkayia9kmzTTfLiShlQIkvuzMeEq3baaLITEeAmuNCUPWbXO75p7meLpmtqkndKc3MufXFHyL2C4nG/PEIUrJypMQyqoyeiZB+QzHLmEMDM/0JZjcNrFliV+TkZuOQKswuQWc/pz3+VG6+qp82tTIgpbMfryEPJtx6/OeQoRlpeeLBjaDQVSa4c46dYh59bfw6YtE+dyo5K8Hn4nmp31bwNQcaN6HsSF0YSs+mCdoLD58GVv0FPvIFWawJHwVEv6cT85mVN3PgoOa/XFunlpwHwC9IYEqMsDGpjbJL3SEwc97gAtzZPRFn/OPbpyQ/o72Q9wLurCRGPBb2m7fXE1tfbdbvtuTZ+tZrj0lI9AhEh9LyVhAt8Zuki/XSV/2P/qt9at7nl/m8kV9oabWUfK7quHtBokKJ8HhpdDsJJxWpe0/gE5qUUvb/dVPxFCawCab+hjrgEnZQbgttzFT/WVOax10fO2GreMJZbAc4GxdiPbhExxF6Lk/7+a6n1kAk1KQRQowSi8RBdjc3ii0YUkNWC+4LNoyACaihBPiv9upNcXQ5pTIxTBfXd4TTWGxbroMOYx3WItjDAMt4ZA9o6Xl0E=
+deploy:
+  provider: releases
+  api_key:
+    secure: 1fC4rbmAMpCEjOP9HQocZQktzvzprNpRQPTiwEt1Rd60qBM0y5lJK/Q1tq9Qy6981FK8DAEMYmAcE3Ucvtwt+66NguANYhDDLoSRGOR83F2FNpnEE7lNL/KTaTmen4p02F5EBHVrR/W4diedVqINQW77P84rkShV57ct9sBUIKi04kYymXTjLYwFed/s1HTcpOdZ7uoP127EmovQKYi4buPhqKRG7uRA6URwAoU/Jwd+DKxyvXqr4VMvRgbipZyfKE4w+roO+OuMIhZFb9BzPcj17LkPdnns9HYJCu6rxXsZaaSY7N4y+MkzY7Ias+9D3VlfMQRx69X811h2QxRO+WBFbj/4ymLnakW3JL1KXXZWeFfEFzZayoayeFk7/VygfFckE+VappeISJ5yXo7PrFlMV/eX/bYZ+6Dp6LEZbDS2K8HwqXkU+DldDDkq8jGN+fPDaB3k2Rb5Ap1wpUAHco9hSSQOmO25YIAq15R1qaOBdat+YLe4Npx2d/yVAXC2jarfFxnDaDa8h2QCWFWn4jtmRDoNmgCXXd7zwwvSvvDXs6dcxTbTchSdjPKhxQHyCvj3va+EszgCZehD8vHY8QPIEz5cXhtOcbV8tQ2Mw8sGprovQRkvMW9ZpaWkiYPzgUbuWwY5sglfG6ya9z9ck/TDYSUnIrwPmOs6mS5Seuk=
+  file: 'target/scala-2.11/il-storage_2.11-0.0.1.jar'
+  skip_cleanup: true
+  on:
+    tags: true
