@@ -159,7 +159,7 @@ abstract class Logger {
 }
 
 class Mongo(log: Logger) {
-  val url = sys.env.get("MONGO_URL").getOrElse("mongodb://127.0.0.1:27017/")
+  val url = sys.env.get("MONGO_URL").getOrElse("mongodb://mongo:27017/")
   val cl = MongoClient(url)
   val db = cl.getDatabase("xadf")
 
