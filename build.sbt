@@ -33,7 +33,7 @@ lazy val VERSION_PLAY              = "2.6.0"
 lazy val meta = Seq(
   name := """il-storage""",
   organization := "org.xalgorithms",
-  version := "0.0.2",
+  version := "0.0.3",
   scalaVersion := VERSION_SCALA,
 )
 
