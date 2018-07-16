@@ -47,6 +47,7 @@ object Checks extends App {
 
   basics
   many
+  query_failures
 
   def basics {
     log.info("running basic queries")
@@ -59,10 +60,12 @@ object Checks extends App {
 
     results.onComplete {
       case Success((table0, table1, rule0, rule1)) => {
+        log.info("-- basics - results")
         println(table0)
         println(table1)
         println(rule0)
         println(rule1)
+        log.info("-- basics - results")
       }
 
       case Failure(th) => {
@@ -72,6 +75,7 @@ object Checks extends App {
 
     log.info("waiting for queries")
     Await.ready(results, Duration.Inf)
+    log.info("finished, basics")
   }
 
   def many {
@@ -79,11 +83,32 @@ object Checks extends App {
     val results = mongo.find_many(
       MongoActions.FindManyTracesByRequestId("bbe7798d-f3a7-4b96-af58-53d43b8b74d6"))
     results.onComplete {
-      case Success(docs) => println(docs)
+      case Success(docs) => {
+        log.info("-- many - results")
+        println(docs)
+        log.info("-- many - results")
+      }
       case Failure(th) => println(th)
     }
 
     Await.ready(results, Duration.Inf)
+    log.info("finished, many")
+  }
+
+  def query_failures {
+    log.info("running a find which should fail")
+    val results = mongo.find_one(MongoActions.FindDocumentById("1234"))
+    results.onComplete {
+      case Success(doc) => {
+        println("-- failures - results")
+        println(doc)
+        println("-- failures - results")
+      }
+      case Failure(th) => println(th)
+    }
+
+    Await.ready(results, Duration.Inf)
+    log.info("finished, query failures")
   }
 }
 

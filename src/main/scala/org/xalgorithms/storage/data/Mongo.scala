@@ -152,14 +152,17 @@ class Mongo(log: Logger, url: Option[String] = None) {
   val cl = MongoClient(url.getOrElse("mongodb://mongo:27017/"))
   val db = cl.getDatabase("xadf")
 
-  class PromiseObserver[T](pr: Promise[T], op_name: String) extends Observer[T] {
+  class PromiseObserver[T](pr: Promise[Option[T]], op_name: String) extends Observer[T] {
+    private var result: Option[T] = None
+
     override def onComplete(): Unit = {
       log.debug(s"observed completed (name=${op_name})")
+      pr.success(result)
     }
 
     override def onNext(t: T): Unit = {
       log.debug(s"observed next (name=${op_name})")
-      pr.success(t)
+      result = Some(t)
     }
 
     override def onError(th: Throwable): Unit = {
@@ -169,22 +172,28 @@ class Mongo(log: Logger, url: Option[String] = None) {
     }
   }
 
-  def find_one(op: MongoActions.Find): Future[Document] = {
-    val pr = Promise[Document]()
+  def find_one(op: MongoActions.Find): Future[Option[Document]] = {
+    val pr = Promise[Option[Document]]()
     op.apply(db.getCollection(op.cn)).first().subscribe(new PromiseObserver(pr, "find_one"))
     pr.future
   }
 
-  def find_one_bson(op: MongoActions.Find): Future[BsonDocument] = find_one(op).map(_.toBsonDocument)
+  def find_one_bson(op: MongoActions.Find): Future[Option[BsonDocument]] = find_one(op).map { opt_doc =>
+    opt_doc.map(_.toBsonDocument)
+  }
 
-  def find_many(op: MongoActions.Find): Future[Seq[Document]] = {
-    val pr = Promise[Seq[Document]]
+  def find_many(op: MongoActions.Find): Future[Option[Seq[Document]]] = {
+    val pr = Promise[Option[Seq[Document]]]
     val coll: Unit = db.getCollection(op.cn)
     op.apply(db.getCollection(op.cn)).collect().subscribe(new PromiseObserver(pr, "find_many"))
     pr.future
   }
 
-  def find_many_bson(op: MongoActions.Find): Future[Seq[BsonDocument]] = find_many(op).map { seq => seq.map(_.toBsonDocument) }
+  def find_many_bson(
+    op: MongoActions.Find
+  ): Future[Option[Seq[BsonDocument]]] = find_many(op).map { opt_seq =>
+    opt_seq.map { seq => seq.map(_.toBsonDocument) }
+  }
 
   def store(op: MongoActions.Store): Future[String] = {
     val pr = Promise[String]()
