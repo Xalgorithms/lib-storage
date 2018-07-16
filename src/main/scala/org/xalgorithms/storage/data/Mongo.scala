@@ -33,62 +33,47 @@ import org.mongodb.scala.model.Projections._
 import org.mongodb.scala.model.Sorts._
 import org.mongodb.scala.model.Updates._
 import org.mongodb.scala.model._
-import play.api.{ Logger => PlayLogger }
 import play.api.libs.json._
 import scala.concurrent.{ Future, Promise }
 
+// TODO: this should be provided, not assumed
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object MongoActions {
-  abstract class Store() {
+  abstract class Store(val collection_name: String) {
+    val public_id = randomUUID.toString()
+
     def document : Document
-    def id: String
   }
 
-  case class StoreDocument(doc: BsonDocument) extends Store {
-    private val public_id = randomUUID.toString()
-
+  case class StoreDocument(doc: BsonDocument) extends Store("documents") {
     def this(doc: JsObject) = this(BsonDocument(doc.toString()))
 
     def document: Document = {
       Document("public_id" -> public_id, "content" -> doc)
     }
-
-    def id = public_id
   }
 
-  case class StoreExecution(rule_id: String, ctx: BsonDocument) extends Store {
-    private val request_id = randomUUID.toString()
-
+  case class StoreExecution(rule_id: String, ctx: BsonDocument) extends Store("executions") {
     def this(rule_id: String, ctx: JsObject) = this(rule_id, BsonDocument(ctx.toString()))
 
     def document: Document = {
-      Document("rule_id" -> rule_id, "request_id" -> request_id, "context" -> ctx)
+      Document("rule_id" -> rule_id, "request_id" -> public_id, "context" -> ctx)
     }
-
-    def id = request_id
   }
 
-  case class StoreTestRun(rule_id: String, ctx: BsonDocument) extends Store {
-    private val request_id = randomUUID.toString()
-
+  case class StoreTestRun(rule_id: String, ctx: BsonDocument) extends Store("test-runs") {
     def document: Document = {
-      Document("rule_id" -> rule_id, "request_id" -> request_id, "context" -> ctx)
+      Document("rule_id" -> rule_id, "request_id" -> public_id, "context" -> ctx)
     }
-
-    def id = request_id
   }
 
-  case class StoreTrace(request_id: String) extends Store {
-    private val public_id = randomUUID.toString()
-
+  case class StoreTrace(request_id: String) extends Store("traces") {
     def document: Document = Document(
       "public_id"  -> public_id,
       "request_id" -> request_id,
       "steps" -> BsonArray()
     )
-
-    def id = public_id
   }
 
   abstract class Update {
@@ -105,12 +90,17 @@ object MongoActions {
     def update = push("steps", Document(ctx.toString))
   }
 
-  abstract class FindMany()
-  case class FindManyDocuments() extends FindMany
-  case class FindManyTracesByRequestId(request_id: String) extends FindMany
+  abstract class Find(val cn: String) {
+    def apply(coll: MongoCollection[Document]): FindObservable[Document]
+  }
 
-  class FindOne()
-  case class FindByKey(cn: String, key: String, value: String) extends FindOne
+  case class FindByKey(collection_name: String, key: String, value: String) extends Find(collection_name) {
+    def apply(coll: MongoCollection[Document]): FindObservable[Document] = coll.find(equal(key, value))
+  }
+
+  object FindManyTracesByRequestId {
+    def apply(id: String) = FindByKey("traces", "request_id", id)
+  }
 
   object FindDocumentById {
     def apply(id: String) = FindByKey("documents", "public_id", id)
@@ -129,24 +119,24 @@ object MongoActions {
   }
 
   object FindDocumentByReference {
-    def apply(cn: String, t: String, ref: String): FindOne = {
+    def apply(cn: String, t: String, ref: String): Find = {
       val k = play.api.libs.Codecs.sha1(s"${t}(${ref})".getBytes)
       FindByKey(cn, "public_id", k)
     }
   }
 
   object FindTableByReference {
-    def apply(ref: String): FindOne = {
+    def apply(ref: String): Find = {
       FindDocumentByReference("tables", "T", ref)
     }
 
-    def apply(pkg: String, id: String, version: String): FindOne = {
+    def apply(pkg: String, id: String, version: String): Find = {
       apply(s"${pkg}:${id}:${version}")
     }
   }
 
   object FindRuleByReference {
-    def apply(ref: String): FindOne = {
+    def apply(ref: String): Find = {
       FindDocumentByReference("rules", "R", ref)
     }
   }
@@ -158,81 +148,58 @@ abstract class Logger {
   def info(m: String)
 }
 
-class Mongo(log: Logger) {
-  val url = sys.env.get("MONGO_URL").getOrElse("mongodb://mongo:27017/")
-  val cl = MongoClient(url)
+class Mongo(log: Logger, url: Option[String] = None) {
+  val cl = MongoClient(url.getOrElse("mongodb://mongo:27017/"))
   val db = cl.getDatabase("xadf")
 
-  def find_one(op: MongoActions.FindOne): Future[Document] = {
+  class PromiseObserver[T](pr: Promise[T], op_name: String) extends Observer[T] {
+    override def onComplete(): Unit = {
+      log.debug(s"observed completed (name=${op_name})")
+    }
+
+    override def onNext(t: T): Unit = {
+      log.debug(s"observed next (name=${op_name})")
+      pr.success(t)
+    }
+
+    override def onError(th: Throwable): Unit = {
+      log.error(s"failed operation (name=${op_name})")
+      println(th)
+      pr.failure(th)
+    }
+  }
+
+  def find_one(op: MongoActions.Find): Future[Document] = {
     val pr = Promise[Document]()
-
-    op match {
-      case MongoActions.FindByKey(cn, key, value) => {
-        db.getCollection(cn).find(equal(key, value)).first().subscribe(
-          (doc: Document) => pr.success(censor(doc))
-        )
-      }
-    }
-
+    op.apply(db.getCollection(op.cn)).first().subscribe(new PromiseObserver(pr, "find_one"))
     pr.future
   }
 
-  def find_one_bson(op: MongoActions.FindOne): Future[BsonDocument] = {
-    find_one(op).map(_.toBsonDocument)
-  }
+  def find_one_bson(op: MongoActions.Find): Future[BsonDocument] = find_one(op).map(_.toBsonDocument)
 
-  val NON_PUBLIC_KEYS = Set("_id")
-
-  def censor(doc: Document): Document = {
-    doc.filterKeys { k => !NON_PUBLIC_KEYS(k) }
-  }
-
-  def censor(docs: Seq[Document]): Seq[Document] = docs.map(censor(_))
-
-  def find_many(op: MongoActions.FindMany): Future[Seq[Document]] = {
+  def find_many(op: MongoActions.Find): Future[Seq[Document]] = {
     val pr = Promise[Seq[Document]]
-
-    op match {
-      case MongoActions.FindManyDocuments() => {
-        db.getCollection("documents").find().collect().subscribe(
-          (docs: Seq[Document]) => {
-            pr.success(censor(docs))
-          }
-        )
-      }
-      case MongoActions.FindManyTracesByRequestId(request_id) => {
-        db.getCollection("traces").find(equal("request_id", request_id)).collect().subscribe(
-          (docs: Seq[Document]) => {
-            pr.success(censor(docs))
-          }
-        )
-      }
-    }
-
+    val coll: Unit = db.getCollection(op.cn)
+    op.apply(db.getCollection(op.cn)).collect().subscribe(new PromiseObserver(pr, "find_many"))
     pr.future
   }
+
+  def find_many_bson(op: MongoActions.Find): Future[Seq[BsonDocument]] = find_many(op).map { seq => seq.map(_.toBsonDocument) }
 
   def store(op: MongoActions.Store): Future[String] = {
     val pr = Promise[String]()
-    val cn = op match {
-      case MongoActions.StoreDocument(_) => "documents"
-      case MongoActions.StoreExecution(_, _)  => "executions"
-      case MongoActions.StoreTestRun(_, _)  => "test-runs"
-      case MongoActions.StoreTrace(_)  => "traces"
-    }
-
-    db.getCollection(cn).insertOne(op.document).subscribe(new Observer[Completed] {
+    db.getCollection(op.collection_name).insertOne(op.document).subscribe(new Observer[Completed] {
       override def onComplete(): Unit = {
-        PlayLogger.debug(s"insert completed")
+        log.debug(s"insert completed")
       }
 
       override def onNext(res: Completed): Unit = {
-        PlayLogger.debug(s"insert next")
-        pr.success(op.id)
+        log.debug(s"insert next")
+        pr.success(op.public_id)
       }
 
       override def onError(th: Throwable): Unit = {
-        PlayLogger.error(s"failed insert, trigging promise")
+        log.error(s"failed insert, trigging promise")
         pr.failure(th)
       }
     })
@@ -260,4 +227,12 @@ class Mongo(log: Logger) {
 
     pr.future
   }
+
+  private val NON_PUBLIC_KEYS = Set("_id")
+
+  private def censor(doc: Document): Document = {
+    doc.filterKeys { k => !NON_PUBLIC_KEYS(k) }
+  }
+
+  private def censor(docs: Seq[Document]): Seq[Document] = docs.map(censor(_))
 }
