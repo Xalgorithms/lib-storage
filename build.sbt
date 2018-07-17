@@ -29,6 +29,7 @@ lazy val VERSION_JODA              = "2.10"
 lazy val VERSION_JODA_CONVERT      = "2.1"
 // for easy hexdigest generation
 lazy val VERSION_PLAY              = "2.6.0"
+lazy val VERSION_FAKER             = "0.15"
 
 lazy val meta = Seq(
   name := """il-storage""",
@@ -38,9 +39,6 @@ lazy val meta = Seq(
 )
 
 lazy val lib_deps = Seq(
-  // ours
-  // FIXME: publish these to maven or github or something - it's currently copied into lib/
-//  "org.xalgorithms"        %% "il-rules-interpreter"    % VERSION_RULES_INTERPRETER,
   // outer
   "org.mongodb.scala"      %% "mongo-scala-driver"      % VERSION_MONGO_SCALA,
   "com.typesafe.play"      %% "play"                    % VERSION_PLAY,
@@ -48,7 +46,8 @@ lazy val lib_deps = Seq(
   "joda-time"              %  "joda-time"               % VERSION_JODA,
   "org.joda"               %  "joda-convert"            % VERSION_JODA_CONVERT,
   "org.scalamock"          %% "scalamock"               % VERSION_SCALA_MOCK % Test,
-  "org.scalatest"          %% "scalatest"               % VERSION_SCALA_TEST % "test",
+  "org.scalatest"          %% "scalatest"               % VERSION_SCALA_TEST % Test,
+  "com.github.javafaker"   %  "javafaker"               % VERSION_FAKER % Test,
 )
 
 lazy val root = (project in file("."))
