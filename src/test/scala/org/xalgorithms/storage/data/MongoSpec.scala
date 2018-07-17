@@ -27,8 +27,9 @@ import org.scalatest._
 import org.scalatest.exceptions._
 import org.scalatest.concurrent.ScalaFutures
 
+import collection.JavaConverters._
 import org.mongodb.scala._
-import org.mongodb.scala.bson.{ BsonArray, BsonDocument, BsonString }
+import org.mongodb.scala.bson.{ BsonArray, BsonDocument, BsonInt32, BsonString }
 import play.api.libs.json._
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.{ Duration, DurationInt }
@@ -235,6 +236,47 @@ class MongoSpec extends FlatSpec
               seq.head.get("steps") shouldEqual(Some(BsonArray()))
             }
             case None => fail(s"expected documents to exist (id=${result_tup._2})")
+          }
+        }
+      }
+    }
+  }
+
+  it should "add contexts to traces" in {
+    // store a trace
+    val request_id = "request_add_context"
+    whenReady(mongo.store(MongoActions.StoreTrace(request_id))) { trace_public_id =>
+      val updates = (0 to 5).map { i =>
+        (s"phase_${i}", i, generate_json_document(i))
+      }
+
+      val update_futs = Future.sequence(updates.map { case (phase, index, ctx) =>
+        mongo.update(
+          MongoActions.AddContext(request_id, phase, index, ctx)
+        ).map { _ => (phase, index, ctx) }
+      })
+      whenReady(update_futs) { results =>
+        results.size shouldEqual(updates.size)
+        whenReady(mongo.find_one(MongoActions.FindTraceById(trace_public_id))) { doc =>
+          val doc_steps = doc.get("steps")
+          doc_steps should not be null
+          doc_steps shouldBe a [BsonArray]
+
+          val steps = doc_steps.asInstanceOf[BsonArray].getValues().asScala
+          steps.size shouldEqual(updates.size)
+          steps.foreach { step => step shouldBe a [BsonDocument] }
+
+          updates.map { case (phase, index, ctx) =>
+            (BsonString(phase), BsonInt32(index), BsonDocument(ctx.toString))
+          }.foreach { case (ex_phase, ex_index, ex_ctx) =>
+            steps.filter { step_v =>
+              val step = step_v.asInstanceOf[BsonDocument]
+              val ac_phase = step.get("phase")
+              val ac_index = step.get("index")
+              val ac_ctx = step.get("context")
+
+              ac_phase == ex_phase && ac_index == ex_index && ac_ctx == ex_ctx
+            }.size shouldEqual(1) withClue(s"could not locate the step (phase=${ex_phase}; index=${ex_index})")
           }
         }
       }
