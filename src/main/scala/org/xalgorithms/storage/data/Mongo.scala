@@ -63,6 +63,8 @@ object MongoActions {
   }
 
   case class StoreTestRun(rule_id: String, ctx: BsonDocument) extends Store("test-runs") {
+    def this(rule_id: String, ctx: JsObject) = this(rule_id, BsonDocument(ctx.toString()))
+
     def document: Document = {
       Document("rule_id" -> rule_id, "request_id" -> public_id, "context" -> ctx)
     }
@@ -114,6 +116,10 @@ object MongoActions {
     def apply(id: String) = FindByKey("executions", "request_id", id)
   }
 
+  object FindTestRunById {
+    def apply(id: String) = FindByKey("test-runs", "request_id", id)
+  }
+
   object FindRuleById {
     def apply(id: String) = FindByKey("rules", "public_id", id)
   }
@@ -158,6 +164,29 @@ class Mongo(log: Logger, url: Option[String] = None) {
     override def onComplete(): Unit = {
       log.debug(s"observed completed (name=${op_name})")
       pr.success(result)
+    }
+
+    override def onNext(t: T): Unit = {
+      log.debug(s"observed next (name=${op_name})")
+      result = Some(t)
+    }
+
+    override def onError(th: Throwable): Unit = {
+      log.error(s"failed operation (name=${op_name})")
+      println(th)
+      pr.failure(th)
+    }
+  }
+
+  class DirectPromiseObserver[T](pr: Promise[T], op_name: String) extends Observer[T] {
+    private var result: Option[T] = None
+
+    override def onComplete(): Unit = {
+      log.debug(s"observed completed (name=${op_name})")
+      result match {
+        case Some(t) => pr.success(t)
+        case None    => pr.failure(new Exception("received nothing"))
+      }
     }
 
     override def onNext(t: T): Unit = {
@@ -236,6 +265,21 @@ class Mongo(log: Logger, url: Option[String] = None) {
 
     pr.future
   }
+
+  def drop_all_collections(): Future[Int] = {
+    val cns = Seq(
+      "documents",
+      "executions",
+      "test-runs",
+      "traces"
+    )
+    Future.sequence(cns.map { cn =>
+      val pr = Promise[Completed]
+      db.getCollection(cn).drop().subscribe(new DirectPromiseObserver(pr, "drop_all_collections"))
+      pr.future
+    }).map(_.size)
+  }
+  
 
   private val NON_PUBLIC_KEYS = Set("_id")
 
