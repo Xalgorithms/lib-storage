@@ -257,12 +257,16 @@ class MongoSpec extends FlatSpec
       }
 
       val update_futs = Future.sequence(updates.map { case (phase, index, ctx) =>
-        mongo.update(
+        mongo.update_one(
           MongoActions.AddContext(request_id, phase, index, ctx)
-        ).map { _ => (phase, index, ctx) }
+        ).map { changes => (phase, index, ctx, changes) }
       })
       whenReady(update_futs) { results =>
         results.size shouldEqual(updates.size)
+        results.foreach { case (phase, index, ctx, changes) =>
+          changes._1 shouldEqual(1)
+          changes._2 shouldEqual(1)
+        }
         whenReady(mongo.find_one(MongoActions.FindTraceById(trace_public_id))) { doc =>
           val doc_steps = doc.get("steps")
           doc_steps should not be null

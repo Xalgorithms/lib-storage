@@ -80,16 +80,23 @@ object MongoActions {
 
   abstract class Update {
     def collection: String
-    def condition: Unit
+    def condition: Bson
     def update: Bson
   }
 
   case class AddContext(
-    public_id: String, phase: String, index: Int, ctx: JsValue
+    request_id: String, phase: String, index: Int, ctx: JsValue
   ) extends Update {
     def collection = "traces"
-    def condition = equal("public_id", public_id)
-    def update = push("steps", Document(ctx.toString))
+    def condition = equal("request_id", request_id)
+    def update = {
+      val doc = Document(
+        "index" -> index,
+        "phase" -> phase,
+        "context" -> Document(ctx.toString)
+      )
+      push("steps", doc)
+    }
   }
 
   abstract class Find(val cn: String) {
@@ -274,23 +281,14 @@ class Mongo(log: Logger, url: Option[String] = None) {
     pr.future
   }
 
-  def update(op: MongoActions.Update): Future[Unit] = {
-    val pr = Promise[Unit]()
-    op match {
-      case MongoActions.AddContext(request_id, phase, index, ctx) => {
-        val doc = Document(
-          "index" -> index,
-          "phase" -> phase,
-          "context" -> Document(ctx.toString))
-        db.getCollection("traces").updateOne(
-          equal("request_id", request_id),
-          push("steps", doc)
-        ).subscribe((update: UpdateResult) => {
-          log.info(s"updated (request_id=${request_id}; matched=${update.getMatchedCount}; modified=${update.getModifiedCount})")
-          pr.success(None)
-        })
-      }
-    }
+  def update_one(op: MongoActions.Update): Future[(Long, Long)] = {
+    val pr = Promise[(Long, Long)]()
+
+    db.getCollection(op.collection).updateOne(
+      op.condition, op.update
+    ).subscribe((update: UpdateResult) => {
+      pr.success((update.getMatchedCount, update.getModifiedCount))
+    })
 
     pr.future
   }
