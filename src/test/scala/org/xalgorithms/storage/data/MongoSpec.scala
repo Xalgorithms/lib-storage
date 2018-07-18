@@ -130,13 +130,15 @@ class MongoSpec extends FlatSpec
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(execs.size)
-        results_tups.foreach { case (found, id, rule_id, doc) =>
+        results_tups.map {case (found, id, rule_id, doc) =>
+          (found, Some(BsonString(id)), Some(BsonString(rule_id)), Some(BsonDocument(doc.toString)), id)
+        }foreach { case (found, ex_id, ex_rule_id, ex_ctx, id) =>
           found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("request_id") shouldEqual(Some(BsonString(id)))
-              res_doc.get("rule_id") shouldEqual(Some(BsonString(rule_id)))
-              res_doc.get("context") shouldEqual(Some(BsonDocument(doc.toString)))
+              res_doc.get("request_id") shouldEqual(ex_id)
+              res_doc.get("rule_id") shouldEqual(ex_rule_id)
+              res_doc.get("context") shouldEqual(ex_ctx)
             }
 
             case None => fail(s"expected a document to exist (id=${id})")
@@ -170,13 +172,15 @@ class MongoSpec extends FlatSpec
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(execs.size)
-        results_tups.foreach { case (found, id, rule_id, doc) =>
+        results_tups.map { case (found, id, rule_id, doc) =>
+          (found, Some(BsonString(id)), Some(BsonString(rule_id)), Some(BsonDocument(doc.toString)), id)
+        }.foreach { case (found, ex_id, ex_rule_id, ex_ctx, id) =>
          found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("request_id") shouldEqual(Some(BsonString(id)))
-              res_doc.get("rule_id") shouldEqual(Some(BsonString(rule_id)))
-              res_doc.get("context") shouldEqual(Some(BsonDocument(doc.toString)))
+              res_doc.get("request_id") shouldEqual(ex_id)
+              res_doc.get("rule_id") shouldEqual(ex_rule_id)
+              res_doc.get("context") shouldEqual(ex_ctx)
             }
 
             case None => fail(s"expected a document to exist (id=${id})")
@@ -257,13 +261,15 @@ class MongoSpec extends FlatSpec
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(ids.size)
-        results_tups.foreach { case (found, id, req_id) =>
+        results_tups.map { case (found, id, req_id) =>
+          (found, Some(BsonString(id)), Some(BsonString(req_id)), Some(BsonArray()), id)
+        }.foreach { case (found, ex_id, ex_req_id, ex_steps, id) =>
           found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("public_id") shouldEqual(Some(BsonString(id)))
-              res_doc.get("request_id") shouldEqual(Some(BsonString(req_id)))
-              res_doc.get("steps") shouldEqual(Some(BsonArray()))
+              res_doc.get("public_id") shouldEqual(ex_id)
+              res_doc.get("request_id") shouldEqual(ex_req_id)
+              res_doc.get("steps") shouldEqual(ex_steps)
             }
 
             case None => fail(s"expected a document to exist (id=${id})")
@@ -281,14 +287,16 @@ class MongoSpec extends FlatSpec
 
       whenReady(find_many_futs) { results_tups =>
         results_tups.size shouldEqual(ids.size)
-        results_tups.foreach { case (found, id, req_id) =>
+        results_tups.map { case (found, id, req_id) =>
+          (found, Some(BsonString(id)), Some(BsonString(req_id)), Some(BsonArray()), id)
+        }.foreach { case (found, ex_id, ex_req_id, ex_steps, id) =>
           found match {
             case Some(seq) => {
               seq.size shouldEqual(1)
               seq.head.get("_id") shouldBe None
-              seq.head.get("public_id") shouldEqual(Some(BsonString(id)))
-              seq.head.get("request_id") shouldEqual(Some(BsonString(req_id)))
-              seq.head.get("steps") shouldEqual(Some(BsonArray()))
+              seq.head.get("public_id") shouldEqual(ex_id)
+              seq.head.get("request_id") shouldEqual(ex_req_id)
+              seq.head.get("steps") shouldEqual(ex_steps)
             }
             case None => fail(s"expected documents to exist (id=${id})")
           }
