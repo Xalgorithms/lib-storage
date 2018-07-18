@@ -99,12 +99,18 @@ object MongoActions {
     }
   }
 
-  abstract class Find(val cn: String) {
-    def apply(coll: MongoCollection[Document]): FindObservable[Document]
+  class Find(val cn: String) {
+    def apply(coll: MongoCollection[Document]): FindObservable[Document] = coll.find()
+  }
+
+  object Find {
+    def apply(cn: String) = new Find(cn)
   }
 
   case class FindByKey(collection_name: String, key: String, value: String) extends Find(collection_name) {
-    def apply(coll: MongoCollection[Document]): FindObservable[Document] = coll.find(equal(key, value))
+    override def apply(
+      coll: MongoCollection[Document]
+    ): FindObservable[Document] = coll.find(equal(key, value))
   }
 
   object FindManyTracesByRequestId {

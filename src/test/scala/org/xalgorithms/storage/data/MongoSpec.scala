@@ -186,6 +186,55 @@ class MongoSpec extends FlatSpec
     }
   }
 
+  it should "find all documents by default" in {
+    val execs = (0 to 5).map { i =>
+      (s"rule_id_${i}", generate_json_document(i))
+    }
+
+    val futs = Future.sequence(execs.map { case (rule_id, doc) =>
+      mongo.store(
+        new MongoActions.StoreTestRun(rule_id, doc)
+      ).map { id => (id, rule_id, doc) }
+    })
+
+    whenReady(futs) { tups =>
+      // we have some test runs inserted
+      tups.size shouldEqual(execs.size)
+
+      val find_many_fut = mongo.find_many(MongoActions.Find("test-runs"))
+      whenReady(find_many_fut) { opt_results =>
+        opt_results match {
+          case Some(results) => {
+            results.size shouldEqual(tups.size)
+            tups.map { case (id, rule_id, doc) =>
+              (Some(BsonString(id)), Some(BsonString(rule_id)), Some(BsonDocument(doc.toString)))
+            }.foreach { case (ex_id, ex_rule_id, ex_ctx) =>
+                results.filter { res_doc =>
+                  val ac_id = res_doc.get("request_id")
+                  val ac_rule_id = res_doc.get("rule_id")
+                  val ac_ctx = res_doc.get("context")
+
+                  ac_id == ex_id && ac_rule_id == ex_rule_id && ac_ctx == ex_ctx
+                }.size shouldEqual(1)
+            }
+
+            // using the same find in find_one, should find the first from results
+            whenReady(mongo.find_one(MongoActions.Find("test-runs"))) { opt_doc =>
+              opt_doc match {
+                case Some(doc) => {
+                  doc shouldEqual(results.head)
+                }
+                case None => fail("expected to find a document")
+              }
+            }
+          }
+
+          case None => fail("expected to find some documents")
+        }
+      }
+    }
+  }
+
   it should "store traces" in {
     // generates a Seq of Tuples (rule_id, ctx)
     val ids = (0 to 5).map { i => s"request_id_${i}" }
