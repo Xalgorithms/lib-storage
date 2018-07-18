@@ -85,6 +85,8 @@ class MongoSpec extends FlatSpec
         doc_tups.foreach { tup =>
           tup._1 match {
             case Some(ac_doc) => {
+              ac_doc.get("_id") shouldBe None
+              ac_doc.get("public_id") shouldEqual(Some(BsonString(tup._3)))
               tup._2.foreach { case (k, v) =>
                 ac_doc.get("content") match {
                   case Some(ac_content) => {
@@ -131,6 +133,7 @@ class MongoSpec extends FlatSpec
         results_tups.foreach { result_tup =>
           result_tup._1 match {
             case Some(res_doc) => {
+              res_doc.get("_id") shouldBe None
               res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._2)))
               res_doc.get("rule_id") shouldEqual(Some(BsonString(result_tup._3._1)))
               res_doc.get("context") shouldEqual(Some(BsonDocument(result_tup._3._2.toString)))
@@ -170,6 +173,7 @@ class MongoSpec extends FlatSpec
         results_tups.foreach { result_tup =>
           result_tup._1 match {
             case Some(res_doc) => {
+              res_doc.get("_id") shouldBe None
               res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._2)))
               res_doc.get("rule_id") shouldEqual(Some(BsonString(result_tup._3._1)))
               res_doc.get("context") shouldEqual(Some(BsonDocument(result_tup._3._2.toString)))
@@ -207,6 +211,7 @@ class MongoSpec extends FlatSpec
         results_tups.foreach { result_tup =>
           result_tup._1 match {
             case Some(res_doc) => {
+              res_doc.get("_id") shouldBe None
               res_doc.get("public_id") shouldEqual(Some(BsonString(result_tup._2)))
               res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._3)))
               res_doc.get("steps") shouldEqual(Some(BsonArray()))
@@ -231,6 +236,7 @@ class MongoSpec extends FlatSpec
           result_tup._1 match {
             case Some(seq) => {
               seq.size shouldEqual(1)
+              seq.head.get("_id") shouldBe None
               seq.head.get("public_id") shouldEqual(Some(BsonString(result_tup._2)))
               seq.head.get("request_id") shouldEqual(Some(BsonString(result_tup._3)))
               seq.head.get("steps") shouldEqual(Some(BsonArray()))

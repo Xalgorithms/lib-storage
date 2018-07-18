@@ -168,7 +168,7 @@ class Mongo(log: Logger, url: Option[String] = None) {
 
     override def onNext(t: T): Unit = {
       log.debug(s"observed next (name=${op_name})")
-      result = Some(t)
+      result = Some(refine(t))
     }
 
     override def onError(th: Throwable): Unit = {
@@ -176,6 +176,31 @@ class Mongo(log: Logger, url: Option[String] = None) {
       println(th)
       pr.failure(th)
     }
+
+    def refine(t: T): T = t
+  }
+
+  trait Redact {
+    private val NON_PUBLIC_KEYS = Set("_id")
+
+    def redact(doc: Document): Document = {
+      doc.filterKeys { k => !NON_PUBLIC_KEYS(k) }
+    }
+
+    def redact(docs: Seq[Document]): Seq[Document] = docs.map(redact(_))
+  }
+  
+
+  class PublicDocumentPromiseObserver(
+    pr: Promise[Option[Document]], op_name: String
+  ) extends PromiseObserver(pr, op_name) with Redact {
+    override def refine(doc: Document): Document = redact(doc)
+  }
+
+  class PublicDocumentsPromiseObserver(
+    pr: Promise[Option[Seq[Document]]], op_name: String
+  ) extends PromiseObserver(pr, op_name) with Redact {
+    override def refine(docs: Seq[Document]): Seq[Document] = redact(docs)
   }
 
   class DirectPromiseObserver[T](pr: Promise[T], op_name: String) extends Observer[T] {
@@ -203,7 +228,9 @@ class Mongo(log: Logger, url: Option[String] = None) {
 
   def find_one(op: MongoActions.Find): Future[Option[Document]] = {
     val pr = Promise[Option[Document]]()
-    op.apply(db.getCollection(op.cn)).first().subscribe(new PromiseObserver(pr, "find_one"))
+    op.apply(db.getCollection(op.cn)).first().subscribe(
+      new PublicDocumentPromiseObserver(pr, "find_one")
+    )
     pr.future
   }
 
@@ -214,7 +241,9 @@ class Mongo(log: Logger, url: Option[String] = None) {
   def find_many(op: MongoActions.Find): Future[Option[Seq[Document]]] = {
     val pr = Promise[Option[Seq[Document]]]
     val coll: Unit = db.getCollection(op.cn)
-    op.apply(db.getCollection(op.cn)).collect().subscribe(new PromiseObserver(pr, "find_many"))
+    op.apply(db.getCollection(op.cn)).collect().subscribe(
+      new PublicDocumentsPromiseObserver(pr, "find_many")
+    )
     pr.future
   }
 
@@ -279,13 +308,4 @@ class Mongo(log: Logger, url: Option[String] = None) {
       pr.future
     }).map(_.size)
   }
-  
-
-  private val NON_PUBLIC_KEYS = Set("_id")
-
-  private def censor(doc: Document): Document = {
-    doc.filterKeys { k => !NON_PUBLIC_KEYS(k) }
-  }
-
-  private def censor(docs: Seq[Document]): Seq[Document] = docs.map(censor(_))
 }
