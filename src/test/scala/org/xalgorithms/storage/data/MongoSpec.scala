@@ -75,31 +75,31 @@ class MongoSpec extends FlatSpec
     whenReady(futs) { tups =>
       tups.size shouldEqual(docs.size)
       val find_futs = Future.sequence(
-        tups.map { tup =>
-          mongo.find_one(MongoActions.FindDocumentById(tup._1)).map { found => (found, Document(tup._2), tup._1) }
+        tups.map { case (id, doc) =>
+          mongo.find_one(MongoActions.FindDocumentById(id)).map { found => (found, Document(doc), id) }
         }
       )
 
       whenReady(find_futs) { doc_tups =>
         doc_tups.size shouldEqual(docs.size)
-        doc_tups.foreach { tup =>
-          tup._1 match {
+        doc_tups.foreach { case (found, doc, id) =>
+          found match {
             case Some(ac_doc) => {
               ac_doc.get("_id") shouldBe None
-              ac_doc.get("public_id") shouldEqual(Some(BsonString(tup._3)))
-              tup._2.foreach { case (k, v) =>
+              ac_doc.get("public_id") shouldEqual(Some(BsonString(id)))
+              doc.foreach { case (k, v) =>
                 ac_doc.get("content") match {
                   case Some(ac_content) => {
                     ac_content shouldBe a [BsonDocument]
                     val ac_v = ac_content.asInstanceOf[BsonDocument].get(k)
-                    ac_v shouldEqual(v) withClue s"in doc(${tup._3}), expected ${k}==${v} but got ${ac_v}"
+                    ac_v shouldEqual(v) withClue s"in doc(${id}), expected ${k}==${v} but got ${ac_v}"
                   }
-                  case None => fail(s"expected document to contain 'content' (id=${tup._3})")
+                  case None => fail(s"expected document to contain 'content' (id=${id})")
                 }
               }
             }
 
-            case None => fail(s"expected a document to exist (id=${tup._3})")
+            case None => fail(s"expected a document to exist (id=${id})")
           }
         }
       }
@@ -113,33 +113,33 @@ class MongoSpec extends FlatSpec
     }
 
     // yields a Future which yields a Seq(stored_id, original_tuple)
-    val futs = Future.sequence(execs.map { tup =>
+    val futs = Future.sequence(execs.map { case (rule_id, doc) =>
       mongo.store(
-        new MongoActions.StoreExecution(tup._1, tup._2)
-      ).map { id => (id, tup) }
+        new MongoActions.StoreExecution(rule_id, doc)
+      ).map { id => (id, rule_id, doc) }
     })
 
     whenReady(futs) { tups =>
       tups.size shouldEqual(execs.size)
       // yields a Future Seq of (document from mongo, original id, original Tuple)
       val find_futs = Future.sequence(
-        tups.map { tup =>
-          mongo.find_one(MongoActions.FindExecutionById(tup._1)).map { found => (found, tup._1, tup._2) }
+        tups.map { case (id, rule_id, doc) =>
+          mongo.find_one(MongoActions.FindExecutionById(id)).map { found => (found, id, rule_id, doc) }
         }
       )
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(execs.size)
-        results_tups.foreach { result_tup =>
-          result_tup._1 match {
+        results_tups.foreach { case (found, id, rule_id, doc) =>
+          found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._2)))
-              res_doc.get("rule_id") shouldEqual(Some(BsonString(result_tup._3._1)))
-              res_doc.get("context") shouldEqual(Some(BsonDocument(result_tup._3._2.toString)))
+              res_doc.get("request_id") shouldEqual(Some(BsonString(id)))
+              res_doc.get("rule_id") shouldEqual(Some(BsonString(rule_id)))
+              res_doc.get("context") shouldEqual(Some(BsonDocument(doc.toString)))
             }
 
-            case None => fail(s"expected a document to exist (id=${result_tup._2})")
+            case None => fail(s"expected a document to exist (id=${id})")
           }
         }
       }
@@ -153,33 +153,33 @@ class MongoSpec extends FlatSpec
     }
 
     // yields a Future which yields a Seq(stored_id, original_tuple)
-    val futs = Future.sequence(execs.map { tup =>
+    val futs = Future.sequence(execs.map { case (rule_id, doc) =>
       mongo.store(
-        new MongoActions.StoreTestRun(tup._1, tup._2)
-      ).map { id => (id, tup) }
+        new MongoActions.StoreTestRun(rule_id, doc)
+      ).map { id => (id, rule_id, doc) }
     })
 
     whenReady(futs) { tups =>
       tups.size shouldEqual(execs.size)
       // yields a Future Seq of (document from mongo, original id, original Tuple)
       val find_futs = Future.sequence(
-        tups.map { tup =>
-          mongo.find_one(MongoActions.FindTestRunById(tup._1)).map { found => (found, tup._1, tup._2) }
+        tups.map { case (id, rule_id, doc) =>
+          mongo.find_one(MongoActions.FindTestRunById(id)).map { found => (found, id, rule_id, doc) }
         }
       )
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(execs.size)
-        results_tups.foreach { result_tup =>
-          result_tup._1 match {
+        results_tups.foreach { case (found, id, rule_id, doc) =>
+         found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._2)))
-              res_doc.get("rule_id") shouldEqual(Some(BsonString(result_tup._3._1)))
-              res_doc.get("context") shouldEqual(Some(BsonDocument(result_tup._3._2.toString)))
+              res_doc.get("request_id") shouldEqual(Some(BsonString(id)))
+              res_doc.get("rule_id") shouldEqual(Some(BsonString(rule_id)))
+              res_doc.get("context") shouldEqual(Some(BsonDocument(doc.toString)))
             }
 
-            case None => fail(s"expected a document to exist (id=${result_tup._2})")
+            case None => fail(s"expected a document to exist (id=${id})")
           }
         }
       }
@@ -201,47 +201,47 @@ class MongoSpec extends FlatSpec
       tups.size shouldEqual(ids.size)
       // yields a Future Seq of (document from mongo, original id, original Tuple)
       val find_futs = Future.sequence(
-        tups.map { tup =>
-          mongo.find_one(MongoActions.FindTraceById(tup._1)).map { found => (found, tup._1, tup._2) }
+        tups.map { case (id, req_id) =>
+          mongo.find_one(MongoActions.FindTraceById(id)).map { found => (found, id, req_id) }
         }
       )
 
       whenReady(find_futs) { results_tups =>
         results_tups.size shouldEqual(ids.size)
-        results_tups.foreach { result_tup =>
-          result_tup._1 match {
+        results_tups.foreach { case (found, id, req_id) =>
+          found match {
             case Some(res_doc) => {
               res_doc.get("_id") shouldBe None
-              res_doc.get("public_id") shouldEqual(Some(BsonString(result_tup._2)))
-              res_doc.get("request_id") shouldEqual(Some(BsonString(result_tup._3)))
+              res_doc.get("public_id") shouldEqual(Some(BsonString(id)))
+              res_doc.get("request_id") shouldEqual(Some(BsonString(req_id)))
               res_doc.get("steps") shouldEqual(Some(BsonArray()))
             }
 
-            case None => fail(s"expected a document to exist (id=${result_tup._2})")
+            case None => fail(s"expected a document to exist (id=${id})")
           }
         }
       }
 
       val find_many_futs = Future.sequence(
-        tups.map { tup =>
-          mongo.find_many(MongoActions.FindManyTracesByRequestId(tup._2)).map { found =>
-            (found, tup._1, tup._2)
+        tups.map { case (id, req_id) =>
+          mongo.find_many(MongoActions.FindManyTracesByRequestId(req_id)).map { found =>
+            (found, id, req_id)
           }
         }
       )
 
       whenReady(find_many_futs) { results_tups =>
         results_tups.size shouldEqual(ids.size)
-        results_tups.foreach { result_tup =>
-          result_tup._1 match {
+        results_tups.foreach { case (found, id, req_id) =>
+          found match {
             case Some(seq) => {
               seq.size shouldEqual(1)
               seq.head.get("_id") shouldBe None
-              seq.head.get("public_id") shouldEqual(Some(BsonString(result_tup._2)))
-              seq.head.get("request_id") shouldEqual(Some(BsonString(result_tup._3)))
+              seq.head.get("public_id") shouldEqual(Some(BsonString(id)))
+              seq.head.get("request_id") shouldEqual(Some(BsonString(req_id)))
               seq.head.get("steps") shouldEqual(Some(BsonArray()))
             }
-            case None => fail(s"expected documents to exist (id=${result_tup._2})")
+            case None => fail(s"expected documents to exist (id=${id})")
           }
         }
       }
