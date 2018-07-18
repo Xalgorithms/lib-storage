@@ -268,14 +268,15 @@ class Mongo(log: Logger, url: Option[String] = None) {
 
   def store(op: MongoActions.Store): Future[String] = {
     val pr = Promise[String]()
+    log.info(s"storing (cn=${op.collection_name})")
     db.getCollection(op.collection_name).insertOne(op.document).subscribe(new Observer[Completed] {
       override def onComplete(): Unit = {
         log.debug(s"insert completed")
+        pr.success(op.public_id)
       }
 
       override def onNext(res: Completed): Unit = {
         log.debug(s"insert next")
-        pr.success(op.public_id)
       }
 
       override def onError(th: Throwable): Unit = {
