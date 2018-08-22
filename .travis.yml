@@ -22,7 +22,7 @@ deploy:
   provider: releases
   api_key:
     secure: 1fC4rbmAMpCEjOP9HQocZQktzvzprNpRQPTiwEt1Rd60qBM0y5lJK/Q1tq9Qy6981FK8DAEMYmAcE3Ucvtwt+66NguANYhDDLoSRGOR83F2FNpnEE7lNL/KTaTmen4p02F5EBHVrR/W4diedVqINQW77P84rkShV57ct9sBUIKi04kYymXTjLYwFed/s1HTcpOdZ7uoP127EmovQKYi4buPhqKRG7uRA6URwAoU/Jwd+DKxyvXqr4VMvRgbipZyfKE4w+roO+OuMIhZFb9BzPcj17LkPdnns9HYJCu6rxXsZaaSY7N4y+MkzY7Ias+9D3VlfMQRx69X811h2QxRO+WBFbj/4ymLnakW3JL1KXXZWeFfEFzZayoayeFk7/VygfFckE+VappeISJ5yXo7PrFlMV/eX/bYZ+6Dp6LEZbDS2K8HwqXkU+DldDDkq8jGN+fPDaB3k2Rb5Ap1wpUAHco9hSSQOmO25YIAq15R1qaOBdat+YLe4Npx2d/yVAXC2jarfFxnDaDa8h2QCWFWn4jtmRDoNmgCXXd7zwwvSvvDXs6dcxTbTchSdjPKhxQHyCvj3va+EszgCZehD8vHY8QPIEz5cXhtOcbV8tQ2Mw8sGprovQRkvMW9ZpaWkiYPzgUbuWwY5sglfG6ya9z9ck/TDYSUnIrwPmOs6mS5Seuk=
-  file: 'target/scala-2.12/il-storage_2.12-0.0.5.jar'
+  file: 'target/scala-2.12/il-storage_2.12-0.0.6.jar'
   skip_cleanup: true
   on:
     tags: true
