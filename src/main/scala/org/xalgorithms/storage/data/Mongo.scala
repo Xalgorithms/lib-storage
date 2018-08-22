@@ -167,9 +167,14 @@ abstract class Logger {
   def info(m: String)
 }
 
-class Mongo(log: Logger, url: Option[String] = None) {
-  val cl = MongoClient(url.getOrElse("mongodb://mongo:27017/"))
-  val db = cl.getDatabase("xadf")
+object Defaults {
+  val MONGO_URL = "mongodb://mongo:27017/"
+  val MONGO_DATABASE = "interlibr"
+}
+
+class Mongo(log: Logger, url: Option[String] = Some(Defaults.MONGO_URL), database: Option[String] = Some(Defaults.MONGO_DATABASE)) {
+  val cl = MongoClient(url.getOrElse(Defaults.MONGO_URL))
+  val db = cl.getDatabase(database.getOrElse(Defaults.MONGO_DATABASE))
 
   class PromiseObserver[T](pr: Promise[Option[T]], op_name: String) extends Observer[T] {
     private var result: Option[T] = None
