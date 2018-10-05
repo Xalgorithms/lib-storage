@@ -20,7 +20,7 @@
 // You should have received a copy of the GNU Affero General Public
 // License along with this program. If not, see
 // <http://www.gnu.org/licenses/>.
-lazy val VERSION_MONGO_SCALA       = "2.3.0"
+lazy val VERSION_MONGO_SCALA       = "2.4.2"
 lazy val VERSION_SCALA             = "2.12.4"
 lazy val VERSION_SCALA_TEST        = "3.0.5"
 lazy val VERSION_CASSANDRA         = "3.5.0"
