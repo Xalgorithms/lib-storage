@@ -113,6 +113,17 @@ object MongoActions {
     ): FindObservable[Document] = coll.find(equal(key, value))
   }
 
+  case class FindByKeys(collection_name: String, matches: Map[String, String]) extends Find(collection_name) {
+    override def apply(
+      coll: MongoCollection[Document]
+    ): FindObservable[Document] = {
+      val eqs = matches.keys.map { k =>
+        equal(k, matches(k))
+      }.toSeq
+      coll.find(and(eqs:_*))
+    }
+  }
+
   object FindManyTracesByRequestId {
     def apply(id: String) = FindByKey("traces", "request_id", id)
   }

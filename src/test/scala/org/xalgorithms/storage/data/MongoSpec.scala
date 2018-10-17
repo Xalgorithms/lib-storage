@@ -190,6 +190,76 @@ class MongoSpec extends FlatSpec
     }
   }
 
+  it should "find by key" in {
+    val docs = (0 to 3).map { i =>
+      Json.obj(
+        "a" -> (1 * i).toString,
+        "b" -> (2 * i).toString
+      )
+    }
+
+    val futs = Future.sequence(docs.map { doc =>
+      mongo.store(
+        new MongoActions.StoreDocument(doc)
+      )
+    })
+
+    whenReady(futs) { tups =>
+      tups.size shouldEqual(docs.size)
+
+      docs.zipWithIndex.foreach { case (doc, i) =>
+        val id = tups(i)
+        whenReady(mongo.find_one(MongoActions.FindByKey("documents", "public_id", id))) { opt_doc =>
+          opt_doc.flatMap { doc => doc.get("content").map { v => v.asInstanceOf[BsonDocument] } } match {
+            case Some(content) => {
+              doc.keys.foreach { k =>
+                val ac = Some(content.get(k).asInstanceOf[BsonString].getValue)
+                val ex = (doc \ k).asOpt[String]
+
+                ac shouldEqual(ex)
+              }
+            }
+
+            case None => fail(s"expected to find document (${id})")
+          }
+        }
+      }
+    }
+  }
+
+  it should "find by many keys" in {
+    val docs = (0 to 3).map { i =>
+      Json.obj(
+        "a" -> (1 * i).toString,
+        "b" -> (2 * i).toString,
+      )
+    }
+
+    val futs = Future.sequence(docs.map { doc =>
+      mongo.store(
+        new MongoActions.StoreDocument(doc)
+      )
+    })
+
+    whenReady(futs) { tups =>
+      tups.size shouldEqual(docs.size)
+
+      docs.zipWithIndex.foreach { case (doc, i) =>
+        val id = tups(i)
+        val keys = Map("content.a" -> (1 * i).toString, "content.b" -> (2 * i).toString)
+        whenReady(mongo.find_one(MongoActions.FindByKeys("documents", keys))) { opt_doc =>
+          opt_doc match {
+            case Some(doc) => {
+              doc.getOrElse("public_id", null).asInstanceOf[BsonString].getValue shouldEqual(id)
+            }
+
+            case None => fail(s"expected to find document (${id})")
+          }
+        }
+      }
+    }
+  }
+
   it should "find all documents by default" in {
     val execs = (0 to 5).map { i =>
       (s"rule_id_${i}", generate_json_document(i))
