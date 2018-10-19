@@ -34,7 +34,7 @@ lazy val VERSION_FAKER             = "0.15"
 lazy val meta = Seq(
   name := """il-storage""",
   organization := "org.xalgorithms",
-  version := "0.0.7",
+  version := "0.0.8",
   scalaVersion := VERSION_SCALA,
 )
 
